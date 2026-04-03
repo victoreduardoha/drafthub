@@ -68,7 +68,7 @@ function LobbyPageInner({ id }: { id: string }) {
       const updated = getLobby(id);
       if (updated) saveLobbyToDb(updated);
     }, 50);
-  }, [mounted, role, id, getLobby, captain2Joined, broadcast]);
+  }, [mounted, role, id, getLobby, captain2Joined]);
 
   if (!mounted) {
     return (
