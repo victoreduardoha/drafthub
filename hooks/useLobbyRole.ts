@@ -48,8 +48,21 @@ export function useLobbyRole(lobbyId: string): CaptainRole {
   return role;
 }
 
-// Helper: build the captain-2 share URL for a lobby
-export function getCaptain2Link(lobbyId: string): string {
-  if (typeof window === "undefined") return `/lobby/${lobbyId}?join=captain_2`;
-  return `${window.location.origin}/lobby/${lobbyId}?join=captain_2`;
+// Helper: build the captain-2 share URL, embedding a lobby snapshot so the
+// recipient can hydrate their localStorage even on a different device.
+export function getCaptain2Link(lobbyId: string, lobbySnapshot?: object): string {
+  const base =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/lobby/${lobbyId}?join=captain_2`
+      : `/lobby/${lobbyId}?join=captain_2`;
+
+  if (!lobbySnapshot) return base;
+
+  try {
+    // encodeURIComponent handles Unicode characters in nicknames / map names
+    const encoded = btoa(encodeURIComponent(JSON.stringify(lobbySnapshot)));
+    return `${base}&state=${encoded}`;
+  } catch {
+    return base;
+  }
 }

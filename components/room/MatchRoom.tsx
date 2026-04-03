@@ -81,7 +81,7 @@ export function MatchRoom({ lobby: init, role }: MatchRoomProps) {
   };
 
   const copyCaptain2Link = async () => {
-    await copyToClipboard(getCaptain2Link(lobby.id));
+    await copyToClipboard(getCaptain2Link(lobby.id, lobby));
     toast("Link do Capitão 2 copiado!", "success");
   };
 
@@ -202,7 +202,7 @@ export function MatchRoom({ lobby: init, role }: MatchRoomProps) {
                 </div>
                 <div className="flex items-center gap-2 w-full max-w-sm px-3 py-2.5 rounded-xl bg-[#07080c] border border-white/[0.05]">
                   <code className="flex-1 text-[11px] text-orange-400 truncate font-mono">
-                    {getCaptain2Link(lobby.id)}
+                    {getCaptain2Link(lobby.id, lobby)}
                   </code>
                   <button
                     onClick={copyCaptain2Link}

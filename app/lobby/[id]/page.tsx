@@ -8,6 +8,8 @@ import { MatchRoom } from "@/components/room/MatchRoom";
 import { useLobbyStore } from "@/store/lobbyStore";
 import { useLobbyRole } from "@/hooks/useLobbyRole";
 import { useLobbySync } from "@/hooks/useLobbySync";
+import { useSearchParams } from "next/navigation";
+import { Lobby } from "@/types";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -19,7 +21,9 @@ interface PageProps {
 
 function LobbyPageInner({ id }: { id: string }) {
   const router = useRouter();
-  const getLobby = useLobbyStore((s) => s.getLobby);
+  const searchParams = useSearchParams();
+  const getLobby    = useLobbyStore((s) => s.getLobby);
+  const updateLobby = useLobbyStore((s) => s.updateLobby);
   const captain2Joined = useLobbyStore((s) => s.captain2Joined);
   const [mounted, setMounted] = useState(false);
 
@@ -29,6 +33,22 @@ function LobbyPageInner({ id }: { id: string }) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Hydrate from URL snapshot when lobby is missing (Captain 2 on different device)
+  useEffect(() => {
+    if (!mounted) return;
+    if (getLobby(id)) return; // already in store — nothing to do
+
+    const stateParam = searchParams.get("state");
+    if (!stateParam) return;
+
+    try {
+      const lobby = JSON.parse(decodeURIComponent(atob(stateParam))) as Lobby;
+      updateLobby(lobby);
+    } catch {
+      // malformed param — ignore, "not found" screen will show
+    }
+  }, [mounted, id, searchParams, getLobby, updateLobby]);
 
   // When captain 2 opens the link, advance the lobby status and broadcast to captain 1
   useEffect(() => {
