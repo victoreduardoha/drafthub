@@ -7,10 +7,9 @@ import { ToastProvider } from "@/components/ui/Toast";
 import { MatchRoom } from "@/components/room/MatchRoom";
 import { useLobbyStore } from "@/store/lobbyStore";
 import { useLobbyRole } from "@/hooks/useLobbyRole";
-import { useLobbySync } from "@/hooks/useLobbySync";
 import { useSearchParams } from "next/navigation";
+import { saveLobbyToDb, fetchLobbyFromDb } from "@/lib/lobby-api";
 import { Lobby } from "@/types";
-import { fetchLobbyFromDb } from "@/lib/lobby-api";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -29,7 +28,6 @@ function LobbyPageInner({ id }: { id: string }) {
   const [mounted, setMounted] = useState(false);
 
   const role = useLobbyRole(id);
-  const { broadcast } = useLobbySync(id);
 
   useEffect(() => {
     setMounted(true);
@@ -68,7 +66,7 @@ function LobbyPageInner({ id }: { id: string }) {
     // Small delay to let Zustand persist the update before broadcasting
     setTimeout(() => {
       const updated = getLobby(id);
-      if (updated) broadcast(updated);
+      if (updated) saveLobbyToDb(updated);
     }, 50);
   }, [mounted, role, id, getLobby, captain2Joined, broadcast]);
 
