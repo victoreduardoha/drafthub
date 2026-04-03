@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [],
+    // Allow unoptimized local images to avoid errors when map images are missing
+    unoptimized: true,
+  },
 };
 
 export default nextConfig;
