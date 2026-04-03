@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { saveLobbyToDb } from "@/lib/lobby-api";
 import { AnimatePresence, motion } from "framer-motion";
 import { Crosshair } from "lucide-react";
 import { StepIndicator } from "./StepIndicator";
@@ -28,6 +29,7 @@ const initial: CreateLobbyState = {
 export function LobbyCreator() {
   const router = useRouter();
   const createLobby = useLobbyStore((s) => s.createLobby);
+  const getLobby    = useLobbyStore((s) => s.getLobby);
   const { toast } = useToast();
   const [state, setState] = useState<CreateLobbyState>(initial);
   const [loading, setLoading] = useState(false);
@@ -52,6 +54,10 @@ export function LobbyCreator() {
         format: state.format!,
         mapPool: state.mapPool,
       });
+      // Persist to Supabase so Captain 2 can load it from any device
+      const newLobby = getLobby(id);
+      if (newLobby) saveLobbyToDb(newLobby);
+
       toast("Lobby criado!", "success");
       router.push(`/lobby/${id}`);
     }, 700);

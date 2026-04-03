@@ -3,56 +3,57 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Lobby } from "@/types";
 import { useLobbyStore } from "@/store/lobbyStore";
-
-interface SyncMessage {
-  type: "lobby_update";
-  lobby: Lobby;
-}
+import { supabase } from "@/lib/supabase";
+import { saveLobbyToDb } from "@/lib/lobby-api";
 
 /**
- * Opens a BroadcastChannel for the given lobby so all tabs stay in sync.
- * Returns a `broadcast(lobby)` function — call it after any store mutation
- * to push the updated snapshot to other tabs.
+ * Subscribes to Supabase Realtime for the given lobby.
+ * Any INSERT or UPDATE on the lobbies table (for this lobby ID) is applied
+ * directly to the local Zustand store — keeping every connected device in sync.
  *
- * Structured for a future Supabase Realtime migration: replace the
- * BroadcastChannel subscription with a Supabase channel without changing
- * the public API of this hook.
+ * Returns a `broadcast(lobby)` function that persists the updated lobby to
+ * Supabase, which in turn triggers the Realtime event on all other devices.
  */
 export function useLobbySync(lobbyId: string) {
   const updateLobby = useLobbyStore((s) => s.updateLobby);
-  const channelRef = useRef<BroadcastChannel | null>(null);
-  // Guard against echoing messages we just received
-  const isApplyingRemote = useRef(false);
+  // Prevents applying a Realtime event that we ourselves just triggered
+  const isSaving = useRef(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("BroadcastChannel" in window)) return;
-
-    const ch = new BroadcastChannel(`valolobby_${lobbyId}`);
-    channelRef.current = ch;
-
-    ch.onmessage = (event: MessageEvent<SyncMessage>) => {
-      if (event.data?.type === "lobby_update") {
-        isApplyingRemote.current = true;
-        updateLobby(event.data.lobby);
-        isApplyingRemote.current = false;
-      }
-    };
+    const channel = supabase
+      .channel(`lobby-${lobbyId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // INSERT + UPDATE
+          schema: "public",
+          table: "lobbies",
+          filter: `id=eq.${lobbyId}`,
+        },
+        (payload) => {
+          // Ignore echo from our own write
+          if (isSaving.current) return;
+          const incoming = (payload.new as { data: Lobby }).data;
+          if (incoming) updateLobby(incoming);
+        }
+      )
+      .subscribe();
 
     return () => {
-      ch.close();
-      channelRef.current = null;
+      supabase.removeChannel(channel);
     };
   }, [lobbyId, updateLobby]);
 
-  const broadcast = useCallback(
-    (lobby: Lobby) => {
-      if (channelRef.current && !isApplyingRemote.current) {
-        const msg: SyncMessage = { type: "lobby_update", lobby };
-        channelRef.current.postMessage(msg);
-      }
-    },
-    []
-  );
+  /**
+   * Call this after every store mutation to persist + broadcast to other devices.
+   * Fire-and-forget — errors are logged but never block the UI.
+   */
+  const broadcast = useCallback(async (lobby: Lobby) => {
+    isSaving.current = true;
+    await saveLobbyToDb(lobby);
+    // Small delay so our own Realtime echo arrives while the flag is still set
+    setTimeout(() => { isSaving.current = false; }, 300);
+  }, []);
 
   return { broadcast };
 }

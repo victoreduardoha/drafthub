@@ -10,6 +10,7 @@ import { useLobbyRole } from "@/hooks/useLobbyRole";
 import { useLobbySync } from "@/hooks/useLobbySync";
 import { useSearchParams } from "next/navigation";
 import { Lobby } from "@/types";
+import { fetchLobbyFromDb } from "@/lib/lobby-api";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -34,20 +35,26 @@ function LobbyPageInner({ id }: { id: string }) {
     setMounted(true);
   }, []);
 
-  // Hydrate from URL snapshot when lobby is missing (Captain 2 on different device)
+  // Hydrate lobby when it's missing from localStorage (Captain 2 on a different device).
+  // Priority: 1) Supabase (authoritative, latest state)
+  //           2) URL ?state= param (instant fallback while Supabase loads)
   useEffect(() => {
     if (!mounted) return;
-    if (getLobby(id)) return; // already in store — nothing to do
+    if (getLobby(id)) return; // already in local store
 
+    // Fast fallback: decode lobby snapshot embedded in the share URL
     const stateParam = searchParams.get("state");
-    if (!stateParam) return;
-
-    try {
-      const lobby = JSON.parse(decodeURIComponent(atob(stateParam))) as Lobby;
-      updateLobby(lobby);
-    } catch {
-      // malformed param — ignore, "not found" screen will show
+    if (stateParam) {
+      try {
+        const lobby = JSON.parse(decodeURIComponent(atob(stateParam))) as Lobby;
+        updateLobby(lobby);
+      } catch { /* malformed — ignore */ }
     }
+
+    // Authoritative fetch: Supabase has the most up-to-date state
+    fetchLobbyFromDb(id).then((lobby) => {
+      if (lobby) updateLobby(lobby);
+    });
   }, [mounted, id, searchParams, getLobby, updateLobby]);
 
   // When captain 2 opens the link, advance the lobby status and broadcast to captain 1

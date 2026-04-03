@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.101.1",
     "@types/uuid": "^10.0.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
