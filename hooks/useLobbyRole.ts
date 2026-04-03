@@ -61,7 +61,9 @@ export function getCaptain2Link(lobbyId: string, lobbySnapshot?: object): string
   try {
     // encodeURIComponent handles Unicode characters in nicknames / map names
     const encoded = btoa(encodeURIComponent(JSON.stringify(lobbySnapshot)));
-    return `${base}&state=${encoded}`;
+    // encodeURIComponent is required: btoa output contains '+' which URLSearchParams
+    // treats as a space, corrupting the base64 before atob() can decode it.
+    return `${base}&state=${encodeURIComponent(encoded)}`;
   } catch {
     return base;
   }
